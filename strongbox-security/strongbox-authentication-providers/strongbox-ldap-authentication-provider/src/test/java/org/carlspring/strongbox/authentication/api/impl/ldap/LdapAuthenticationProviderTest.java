@@ -83,6 +83,24 @@ public class LdapAuthenticationProviderTest
                 );
     }
 
+    @Test
+    public void base64EncodedPasswordsShouldWork()
+    {
+        UserDetails ldapUser = ldapUserDetailsService.loadUserByUsername("base64encoded-issue-1840");
+
+        assertThat(ldapUser).isInstanceOf(LdapUserDetailsImpl.class);
+        LdapUserDetails ldapUserDetails = (LdapUserDetailsImpl) ldapUser;
+
+        assertThat(ldapUserDetails.getDn()).isEqualTo("uid=base64encoded-issue-1840,ou=Users,dc=carlspring,dc=com");
+        assertThat(ldapUserDetails.getPassword()).isEqualTo("{bcrypt}JDJhJDEwJGxwd2x4eWp2WEt6TjFjY0NydzJQQnVaeC5lVmVzV2JmbVRic3JDYm9NVS5nc05XVmNaV01p");
+        assertThat(ldapUserDetails.getUsername()).isEqualTo("base64encoded-issue-1840");
+        assertThat(((List<SimpleGrantedAuthority>)ldapUser.getAuthorities()))
+                .contains(
+                        new SimpleGrantedAuthority(SystemRole.REPOSITORY_MANAGER.name()),
+                        new SimpleGrantedAuthority("USER_ROLE")
+                );
+    }
+
     public static class TestContextInitializer extends AuthenticationContextInitializer
     {
 

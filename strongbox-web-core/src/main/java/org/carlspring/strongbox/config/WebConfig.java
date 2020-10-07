@@ -2,7 +2,7 @@ package org.carlspring.strongbox.config;
 
 import org.apache.commons.lang.StringUtils;
 import org.carlspring.strongbox.configuration.ConfigurationManager;
-import org.carlspring.strongbox.configuration.StrongboxSecurityConfig;
+import org.carlspring.strongbox.configuration.WebSecurityConfig;
 import org.carlspring.strongbox.converters.RoleFormToRoleConverter;
 import org.carlspring.strongbox.converters.RoleListFormToRoleListConverter;
 import org.carlspring.strongbox.converters.configuration.ProxyConfigurationFormConverter;
@@ -76,7 +76,7 @@ import static org.carlspring.strongbox.net.MediaType.APPLICATION_YML_VALUE;
                  "org.carlspring.strongbox.utils",
                  "org.carlspring.strongbox.actuator" })
 @Import({ CommonConfig.class,
-          StrongboxSecurityConfig.class,
+          WebSecurityConfig.class,
           StorageApiConfig.class,
           EventsConfig.class,
           StorageCoreConfig.class,

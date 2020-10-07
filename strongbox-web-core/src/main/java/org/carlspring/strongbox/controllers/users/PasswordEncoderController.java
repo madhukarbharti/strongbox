@@ -1,5 +1,6 @@
 package org.carlspring.strongbox.controllers.users;
 
+import org.carlspring.strongbox.configuration.StrongboxDelegatingPasswordEncoder;
 import org.carlspring.strongbox.controllers.BaseController;
 import org.carlspring.strongbox.forms.users.PasswordEncodeForm;
 import org.carlspring.strongbox.validation.RequestBodyValidationException;
@@ -15,7 +16,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
@@ -35,7 +35,7 @@ public class PasswordEncoderController
     public static final String INVALID_FORM = "Form contains invalid data!";
 
     @Inject
-    private PasswordEncoder passwordEncoder;
+    private StrongboxDelegatingPasswordEncoder passwordEncoder;
 
     @ApiOperation(value = "Encodes submitted raw password")
     @ApiResponses(value = @ApiResponse(code = 200, message = "Returns encoded password"))
