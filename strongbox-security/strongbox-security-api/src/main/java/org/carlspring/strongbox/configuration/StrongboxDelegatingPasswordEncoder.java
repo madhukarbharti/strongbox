@@ -1,11 +1,13 @@
 package org.carlspring.strongbox.configuration;
 
-import javax.annotation.PostConstruct;
+import java.util.Base64;
 
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.crypto.codec.Hex;
+import org.springframework.security.crypto.codec.Utf8;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Base64Utils;
 
 /**
  * This class encodes given raw String or Base64 encoded string.
@@ -19,10 +21,14 @@ public class StrongboxDelegatingPasswordEncoder
         implements PasswordEncoder
 {
 
+    private static final String PREFIX = "{";
+
+    private static final String SUFFIX = "}";
+
     private PasswordEncoder passwordEncoder;
 
-    @PostConstruct
-    private void init()
+
+    public StrongboxDelegatingPasswordEncoder()
     {
         passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
@@ -37,7 +43,7 @@ public class StrongboxDelegatingPasswordEncoder
     @Override
     public String encode(CharSequence rawCharSequence)
     {
-        return passwordEncoder.encode(getDecodedString(rawCharSequence));
+        return passwordEncoder.encode(rawCharSequence);
     }
 
     /**
@@ -45,8 +51,8 @@ public class StrongboxDelegatingPasswordEncoder
      * Returns true if the passwords match, false if they do not. The stored password itself is never decoded.
      * In case given rawCharSequence is Base64 encoded, then it decode it first then verifies.
      *
-     * @param rawCharSequence Raw String or Base64 encoded String
-     * @param encodedString   Encoded String
+     * @param rawCharSequence Raw password
+     * @param encodedString   Encoded Hash String or hash containing Base64 encoded String
      * @return true if the passwords match
      * false if the password do not match
      */
@@ -54,35 +60,68 @@ public class StrongboxDelegatingPasswordEncoder
     public boolean matches(CharSequence rawCharSequence,
                            String encodedString)
     {
-        return passwordEncoder.matches(getDecodedString(rawCharSequence), encodedString);
+        boolean isMatches = passwordEncoder.matches(rawCharSequence, encodedString);
+
+        if (isMatches)
+        {
+            return true;
+        }
+
+        return passwordEncoder.matches(rawCharSequence, decodeBase64PasswordHash(encodedString));
     }
 
-    private String getDecodedString(CharSequence rawCharSequence)
+
+    private String decodeBase64PasswordHash(CharSequence prefixEncodedPassword)
     {
-        if (rawCharSequence == null)
+        if (prefixEncodedPassword == null)
         {
             return null;
         }
 
-        String rawString = rawCharSequence.toString();
+        String prefixEncodedPasswordString = prefixEncodedPassword.toString();
+        String algorithmUsed = extractId(prefixEncodedPasswordString);
 
         try
         {
-            //May throw IllegalArgumentException if raw string contains invalid Base64 characters
-            String base64DecodedString = new String(Base64Utils.decodeFromString(rawString));
+            String encodedPassword = prefixEncodedPasswordString;
 
-            String base64EncodedString = Base64Utils.encodeToString(base64DecodedString.getBytes());
-
-            if (rawString.equals(base64EncodedString))
+            if (StringUtils.isNotEmpty(algorithmUsed))
             {
-                return base64DecodedString;
+                encodedPassword = extractEncodedPassword(prefixEncodedPasswordString);
             }
+
+            return PREFIX + algorithmUsed + SUFFIX +
+                   new String(Hex.encode(Base64.getDecoder().decode(Utf8.encode(encodedPassword))));
         }
-        catch (IllegalArgumentException e)
+        catch (Exception ex)
         {
-            return rawString;
+            return prefixEncodedPasswordString;
+        }
+    }
+
+    private String extractEncodedPassword(String prefixEncodedPassword)
+    {
+        int start = prefixEncodedPassword.indexOf(SUFFIX);
+
+        return prefixEncodedPassword.substring(start + 1);
+    }
+
+    private String extractId(String prefixEncodedPassword)
+    {
+        int start = prefixEncodedPassword.indexOf(PREFIX);
+
+        if (start != 0)
+        {
+            return StringUtils.EMPTY;
         }
 
-        return rawString;
+        int end = prefixEncodedPassword.indexOf(SUFFIX, start);
+
+        if (end < 0)
+        {
+            return StringUtils.EMPTY;
+        }
+
+        return prefixEncodedPassword.substring(start + 1, end);
     }
 }

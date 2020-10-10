@@ -11,6 +11,7 @@ import javax.inject.Inject;
 
 import org.carlspring.strongbox.authentication.support.AuthenticationContextInitializer;
 import org.carlspring.strongbox.config.UsersConfig;
+import org.carlspring.strongbox.configuration.StrongboxDelegatingPasswordEncoder;
 import org.carlspring.strongbox.users.domain.SystemRole;
 
 import org.junit.jupiter.api.Test;
@@ -86,14 +87,16 @@ public class LdapAuthenticationProviderTest
     @Test
     public void base64EncodedPasswordsShouldWork()
     {
+        StrongboxDelegatingPasswordEncoder passwordEncoder = new StrongboxDelegatingPasswordEncoder();
         UserDetails ldapUser = ldapUserDetailsService.loadUserByUsername("base64encoded-issue-1840");
 
         assertThat(ldapUser).isInstanceOf(LdapUserDetailsImpl.class);
         LdapUserDetails ldapUserDetails = (LdapUserDetailsImpl) ldapUser;
 
         assertThat(ldapUserDetails.getDn()).isEqualTo("uid=base64encoded-issue-1840,ou=Users,dc=carlspring,dc=com");
-        assertThat(ldapUserDetails.getPassword()).isEqualTo("{bcrypt}JDJhJDEwJGxwd2x4eWp2WEt6TjFjY0NydzJQQnVaeC5lVmVzV2JmbVRic3JDYm9NVS5nc05XVmNaV01p");
+        assertThat(ldapUserDetails.getPassword()).isEqualTo("{MD5}X03MO1qnZdYdgyfeuILPmQ==");
         assertThat(ldapUserDetails.getUsername()).isEqualTo("base64encoded-issue-1840");
+        assertThat(passwordEncoder.matches("password", ldapUserDetails.getPassword())).isEqualTo(true);
         assertThat(((List<SimpleGrantedAuthority>)ldapUser.getAuthorities()))
                 .contains(
                         new SimpleGrantedAuthority(SystemRole.REPOSITORY_MANAGER.name()),

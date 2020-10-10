@@ -9,8 +9,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.util.Base64Utils;
-
 
 @SpringBootTest
 @ActiveProfiles(profiles = "test")
@@ -27,7 +25,6 @@ class StrongboxDelegatingPasswordEncoderTest
 
     }
 
-
     @Inject
     private PasswordEncoder passwordEncoder;
 
@@ -39,15 +36,25 @@ class StrongboxDelegatingPasswordEncoderTest
     }
 
     @Test
-    void encodeAndMatch()
+    void testHashContainsBase64EncodePassword()
     {
-        String text = "password12";
-        String base64EncodedString = Base64Utils.encodeToString(text.getBytes());
+        String base64HashedString = "{MD5}X03MO1qnZdYdgyfeuILPmQ==";
+        Assertions.assertTrue(passwordEncoder.matches("password", base64HashedString));
+    }
 
-        String normalEncode = passwordEncoder.encode(text);
-        String base64Encode = passwordEncoder.encode(base64EncodedString);
+    @Test
+    void testHashWithoutBase64EncodePassword()
+    {
+        String hashedString = "{bcrypt}$2a$10$lpwlxyjvXKzN1ccCrw2PBuZx.eVesWbfmTbsrCboMU.gsNWVcZWMi";
+        Assertions.assertTrue(passwordEncoder.matches("password", hashedString));
+    }
 
-        Assertions.assertTrue(passwordEncoder.matches(text, normalEncode));
-        Assertions.assertTrue(passwordEncoder.matches(text, base64Encode));
+    @Test
+    void testEncodeDecodeTest()
+    {
+        String text = "password-12";
+        String hashedString = passwordEncoder.encode(text);
+        Assertions.assertTrue(passwordEncoder.matches(text, hashedString));
     }
 }
+

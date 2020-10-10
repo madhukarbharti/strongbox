@@ -35,7 +35,7 @@ cn: base64encoded-issue-1840
 mail: mtodorov@carlspring.com
 givenName: Martin
 surname: Todorov
-userPassword: {bcrypt}JDJhJDEwJGxwd2x4eWp2WEt6TjFjY0NydzJQQnVaeC5lVmVzV2JmbVRic3JDYm9NVS5nc05XVmNaV01p
+userPassword: {MD5}X03MO1qnZdYdgyfeuILPmQ==
 
 dn: uid=stodorov,ou=Users,dc=carlspring,dc=com
 objectClass: inetOrgPerson
