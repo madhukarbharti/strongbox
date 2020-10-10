@@ -5,6 +5,7 @@ import javax.enterprise.inject.Default;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
@@ -18,7 +19,7 @@ public class WebSecurityConfig
     @Default
     PasswordEncoder passwordEncoder()
     {
-        return new StrongboxDelegatingPasswordEncoder();
+        return new Base64PasswordEncoderDelegate(PasswordEncoderFactories.createDelegatingPasswordEncoder());
     }
 
 }

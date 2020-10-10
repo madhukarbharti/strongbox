@@ -11,7 +11,7 @@ import javax.inject.Inject;
 
 import org.carlspring.strongbox.authentication.support.AuthenticationContextInitializer;
 import org.carlspring.strongbox.config.UsersConfig;
-import org.carlspring.strongbox.configuration.StrongboxDelegatingPasswordEncoder;
+import org.carlspring.strongbox.configuration.WebSecurityConfig;
 import org.carlspring.strongbox.users.domain.SystemRole;
 
 import org.junit.jupiter.api.Test;
@@ -25,6 +25,7 @@ import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
 import org.springframework.security.ldap.userdetails.LdapUserDetailsImpl;
 import org.springframework.security.ldap.userdetails.LdapUserDetailsService;
@@ -37,7 +38,8 @@ import org.springframework.test.context.ContextHierarchy;
  * @author sbespalov
  */
 @SpringBootTest
-@ContextHierarchy({ @ContextConfiguration(classes = UsersConfig.class),
+@ContextHierarchy({ @ContextConfiguration(classes = { UsersConfig.class,
+                                                      WebSecurityConfig.class }),
                     @ContextConfiguration(locations = "classpath:/ldapServerApplicationContext.xml"),
                     @ContextConfiguration(initializers = LdapAuthenticationProviderTest.TestContextInitializer.class, locations = "classpath:/org/carlspring/strongbox/authentication/external/ldap/strongbox-authentication-providers.xml") })
 @ActiveProfiles(profiles = "test")
@@ -50,11 +52,14 @@ public class LdapAuthenticationProviderTest
     private ContextSource contextSource;
 
     @Inject
+    private PasswordEncoder passwordEncoder;
+
+    @Inject
     private LdapUserDetailsService ldapUserDetailsService;
 
     @Test
     public void embeddedLdapServerCreationContainsExpectedContextSourceAndData()
-        throws Exception
+            throws Exception
     {
         LdapTemplate template = new LdapTemplate(contextSource);
         Object ldapObject = template.lookup("uid=przemyslaw.fusik,ou=Users");
@@ -63,7 +68,8 @@ public class LdapAuthenticationProviderTest
         assertThat(ldapObject).isInstanceOf(DirContextAdapter.class);
         DirContextAdapter dirContextAdapter = (DirContextAdapter) ldapObject;
         assertThat(dirContextAdapter.getDn().toString()).isEqualTo("uid=przemyslaw.fusik,ou=Users");
-        assertThat(dirContextAdapter.getNameInNamespace()).isEqualTo("uid=przemyslaw.fusik,ou=Users,dc=carlspring,dc=com");
+        assertThat(dirContextAdapter.getNameInNamespace()).isEqualTo(
+                "uid=przemyslaw.fusik,ou=Users,dc=carlspring,dc=com");
     }
 
     @Test
@@ -75,9 +81,11 @@ public class LdapAuthenticationProviderTest
         LdapUserDetails ldapUserDetails = (LdapUserDetailsImpl) ldapUser;
 
         assertThat(ldapUserDetails.getDn()).isEqualTo("uid=przemyslaw.fusik,ou=Users,dc=carlspring,dc=com");
-        assertThat(ldapUserDetails.getPassword()).isEqualTo("{SHA-256}{mujKRdqeWWYAWhczNwVnBl6L6dHNwWO5eIGZ/G7pnBg=}bb63813f5b6f64ae306ebbbb23dcbb1c6f49eb9b989fc466b1b1a24a011bb2ce");
+        assertThat(ldapUserDetails.getPassword()).isEqualTo(
+                "{SHA-256}{mujKRdqeWWYAWhczNwVnBl6L6dHNwWO5eIGZ/G7pnBg=}bb63813f5b6f64ae306ebbbb23dcbb1c6f49eb9b989fc466b1b1a24a011bb2ce");
+        assertThat(passwordEncoder.matches("password", ldapUserDetails.getPassword())).isEqualTo(true);
         assertThat(ldapUserDetails.getUsername()).isEqualTo("przemyslaw.fusik");
-        assertThat(((List<SimpleGrantedAuthority>)ldapUser.getAuthorities()))
+        assertThat(((List<SimpleGrantedAuthority>) ldapUser.getAuthorities()))
                 .contains(
                         new SimpleGrantedAuthority(SystemRole.REPOSITORY_MANAGER.name()),
                         new SimpleGrantedAuthority("USER_ROLE")
@@ -85,9 +93,8 @@ public class LdapAuthenticationProviderTest
     }
 
     @Test
-    public void base64EncodedPasswordsShouldWork()
+    public void base64EncodedPasswordAfterAlgorithmShouldWork()
     {
-        StrongboxDelegatingPasswordEncoder passwordEncoder = new StrongboxDelegatingPasswordEncoder();
         UserDetails ldapUser = ldapUserDetailsService.loadUserByUsername("base64encoded-issue-1840");
 
         assertThat(ldapUser).isInstanceOf(LdapUserDetailsImpl.class);
@@ -97,14 +104,36 @@ public class LdapAuthenticationProviderTest
         assertThat(ldapUserDetails.getPassword()).isEqualTo("{MD5}X03MO1qnZdYdgyfeuILPmQ==");
         assertThat(ldapUserDetails.getUsername()).isEqualTo("base64encoded-issue-1840");
         assertThat(passwordEncoder.matches("password", ldapUserDetails.getPassword())).isEqualTo(true);
-        assertThat(((List<SimpleGrantedAuthority>)ldapUser.getAuthorities()))
+        assertThat(((List<SimpleGrantedAuthority>) ldapUser.getAuthorities()))
                 .contains(
                         new SimpleGrantedAuthority(SystemRole.REPOSITORY_MANAGER.name()),
                         new SimpleGrantedAuthority("USER_ROLE")
                 );
     }
 
-    public static class TestContextInitializer extends AuthenticationContextInitializer
+    @Test
+    public void base64EncodedPasswordWithAlgorithmShouldWork()
+    {
+        UserDetails ldapUser = ldapUserDetailsService.loadUserByUsername("base64withalgorithm-issue-1840");
+
+        assertThat(ldapUser).isInstanceOf(LdapUserDetailsImpl.class);
+        LdapUserDetails ldapUserDetails = (LdapUserDetailsImpl) ldapUser;
+
+        assertThat(ldapUserDetails.getDn()).isEqualTo(
+                "uid=base64withalgorithm-issue-1840,ou=Users,dc=carlspring,dc=com");
+        assertThat(ldapUserDetails.getPassword()).isEqualTo(
+                "e2JjcnlwdH0kMmEkMTAkbHB3bHh5anZYS3pOMWNjQ3J3MlBCdVp4LmVWZXNXYmZtVGJzckNib01VLmdzTldWY1pXTWk=");
+        assertThat(ldapUserDetails.getUsername()).isEqualTo("base64withalgorithm-issue-1840");
+        assertThat(passwordEncoder.matches("password", ldapUserDetails.getPassword())).isEqualTo(true);
+        assertThat(((List<SimpleGrantedAuthority>) ldapUser.getAuthorities()))
+                .contains(
+                        new SimpleGrantedAuthority(SystemRole.REPOSITORY_MANAGER.name()),
+                        new SimpleGrantedAuthority("USER_ROLE")
+                );
+    }
+
+    public static class TestContextInitializer
+            extends AuthenticationContextInitializer
     {
 
         public TestContextInitializer()
